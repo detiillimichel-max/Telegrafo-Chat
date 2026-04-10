@@ -422,4 +422,485 @@ const AC = window.AudioContext || window.webkitAudioContext;
 let audioCtx;
 function getAC() { if (!audioCtx) audioCtx = new AC(); return audioCtx; }
 
-function beep
+function beep(freq=880, dur=.08, type='sine', vol=.25) {
+  try {
+    const ctx = getAC();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = freq; o.type = type;
+    g.gain.setValueAtTime(vol, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + dur);
+    o.start(); o.stop(ctx.currentTime + dur);
+  } catch(e){}
+}
+
+function somEnviar() {
+  // Dois bips ascendentes — estilo "whoosh"
+  beep(900, .07, 'sine', .18);
+  setTimeout(() => beep(1400, .07, 'sine', .14), 90);
+  setTimeout(() => beep(1800, .05, 'sine', .10), 170);
+}
+function somReceber() {
+  // Ding suave descendente
+  beep(1100, .08, 'sine', .16);
+  setTimeout(() => beep(880, .1, 'sine', .12), 110);
+}
+function somCurtir() {
+  [440,550,660,770].forEach((f,i) => setTimeout(() => beep(f, .07, 'sine', .18), i*55));
+}
+function somUploadOk() {
+  [660, 880, 1100].forEach((f,i) => setTimeout(() => beep(f, .08, 'sine', .2), i*80));
+}
+function vibrar(ms=40) { if(navigator.vibrate) navigator.vibrate(ms); }
+
+/* =========================================
+   TOAST
+   ========================================= */
+function toast(msg) {
+  const c = document.getElementById("toasts");
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity="0"; t.style.transition="opacity .3s"; setTimeout(()=>t.remove(),300); }, 2800);
+}
+
+/* =========================================
+   BACKGROUND ANIMADO
+   ========================================= */
+(function bgCanvas(){
+  const cvs = document.getElementById("bg-canvas");
+  const ctx = cvs.getContext("2d");
+  let W, H, pts=[];
+  function resize(){ W=cvs.width=window.innerWidth; H=cvs.height=window.innerHeight; }
+  resize(); window.addEventListener("resize",resize);
+  for(let i=0;i<28;i++) pts.push({ x:Math.random()*2000, y:Math.random()*2000, vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3, r:Math.random()*1.8+.5, a:Math.random() });
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; if(p.x<0||p.x>W) p.vx*=-1; if(p.y<0||p.y>H) p.vy*=-1; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=`rgba(0,229,255,${p.a*.6})`; ctx.fill(); });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* =========================================
+   MEMBROS
+   ========================================= */
+const membrosDefault = [
+  { nome:"Michel",   foto:"https://github.com/MichelDetilli.png", emoji:"" },
+  { nome:"Gabriela", foto:"", emoji:"👩" }
+];
+let membrosLista = JSON.parse(localStorage.getItem("oio_membros")) || membrosDefault;
+function salvarMembros() { localStorage.setItem("oio_membros", JSON.stringify(membrosLista)); }
+
+function renderMembros() {
+  const bar = document.getElementById("familia-bar");
+  bar.innerHTML = "";
+  membrosLista.forEach(m => {
+    const div = document.createElement("div");
+    div.className = "membro" + (m.nome === meuNome ? " ativo" : "");
+    div.onclick = () => trocarMembro(m.nome);
+    const fotoConteudo = m.foto ? `<img src="${m.foto}" alt="${m.nome}">` : `<span>${m.emoji || m.nome[0].toUpperCase()}</span>`;
+    div.innerHTML = `<div class="membro-ring"><div class="membro-foto">${fotoConteudo}</div></div><span class="membro-nome">${m.nome}</span>`;
+    bar.appendChild(div);
+  });
+  const add = document.createElement("div");
+  add.className = "membro membro-add";
+  add.onclick = () => document.getElementById("modalMembro").classList.add("aberto");
+  add.innerHTML = `<div class="membro-ring"><div class="membro-foto"><i class="fa-solid fa-plus"></i></div></div><span class="membro-nome">ADD</span>`;
+  bar.appendChild(add);
+}
+
+function trocarMembro(nome) {
+  meuNome = nome; localStorage.setItem("oio_nome", nome);
+  vibrar(30); renderMembros(); toast(`Você é ${nome} agora`);
+}
+renderMembros();
+
+function adicionarMembro() {
+  const nome = document.getElementById("novoNome").value.trim();
+  if (!nome) { toast("Digite um nome!"); return; }
+  if (membrosLista.find(m=>m.nome===nome)) { toast("Já existe!"); return; }
+  membrosLista.push({ nome, foto:"", emoji:"" });
+  salvarMembros(); renderMembros();
+  document.getElementById("modalMembro").classList.remove("aberto");
+  document.getElementById("novoNome").value = "";
+  toast(`${nome} entrou na família! 🏠`);
+  beep(880,.1,'sine',.2);
+}
+function fecharModal(e) {
+  if(e.target===document.getElementById("modalMembro"))
+    document.getElementById("modalMembro").classList.remove("aberto");
+}
+
+/* =========================================
+   NAVEGAÇÃO DE TELAS
+   ========================================= */
+function abrirTela(id) {
+  document.querySelectorAll(".tela").forEach(t=>t.classList.remove("ativa"));
+  document.getElementById("tela-"+id).classList.add("ativa");
+  document.getElementById("controles").style.display = id==="chat" ? "flex" : "none";
+  vibrar(25);
+}
+
+/* =========================================
+   CHAT — ENVIO DE TEXTO
+   ========================================= */
+function enviar() {
+  const input = document.getElementById("msgInput");
+  const texto = input.value.trim();
+  if (!texto) return;
+  dbMsg.push({ nome: meuNome, foto: minhaFoto, texto, ts: Date.now() });
+  input.value = ""; somEnviar(); vibrar(40);
+}
+
+/* =========================================
+   CHAT — RENDERIZAÇÃO
+   ========================================= */
+let primeiraCarga = true;
+let contadorMsgs  = 0;
+
+dbMsg.limitToLast(40).on("value", snap => {
+  const container = document.getElementById("mensagens");
+  const eraNoFundo = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+  container.innerHTML = "";
+  let count = 0;
+  snap.forEach(c => { count++; renderMensagem(c.val(), container); });
+  if (eraNoFundo || primeiraCarga) container.scrollTop = container.scrollHeight;
+  if (!primeiraCarga && count > contadorMsgs) { somReceber(); vibrar(30); }
+  contadorMsgs = count; primeiraCarga = false;
+});
+
+function renderMensagem(m, container) {
+  const minha = m.nome === meuNome;
+  const wrap = document.createElement("div");
+  wrap.className = `balao-wrap ${minha ? "minha" : "deles"}`;
+  let conteudo = "";
+  if (m.texto)    conteudo += `<div>${escapeHtml(m.texto)}</div>`;
+  if (m.imgUrl)   conteudo += `<img src="${m.imgUrl}" loading="lazy" onclick="abrirImagem('${m.imgUrl}')">`;
+  if (m.videoUrl) {
+    conteudo += `
+      <div class="balao-video-wrap" onclick="toggleBalaoVideo(this)">
+        <video src="${m.videoUrl}" playsinline preload="metadata"></video>
+        <div class="balao-video-play"><i class="fa-solid fa-play"></i></div>
+      </div>`;
+  }
+  if (m.audio) {
+    const aid = "a_" + Math.random().toString(36).slice(2);
+    conteudo += `<div class="audio-msg" onclick="toggleAudio('${m.audio}','${aid}',this)">
+      <i class="fa-solid fa-play" id="${aid}_icon"></i>
+      <span>Mensagem de voz</span>
+    </div>`;
+  }
+  const hora = m.ts ? new Date(m.ts).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
+  wrap.innerHTML = `${!minha ? `<div class="balao-autor">${escapeHtml(m.nome)}</div>` : ""}<div class="balao ${minha ? "minha" : "deles"}">${conteudo}<span class="balao-time">${hora}</span></div>`;
+  container.appendChild(wrap);
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function toggleBalaoVideo(wrap) {
+  const vid = wrap.querySelector("video");
+  if (vid.paused) { vid.play(); wrap.classList.add("playing"); }
+  else { vid.pause(); wrap.classList.remove("playing"); }
+}
+
+let audioAtual = null;
+function toggleAudio(src, id, el) {
+  if (audioAtual && !audioAtual.paused) {
+    audioAtual.pause(); audioAtual = null;
+  }
+  const icon = document.getElementById(id + "_icon");
+  const audio = new Audio(src);
+  audioAtual = audio;
+  audio.play();
+  if (icon) { icon.className = "fa-solid fa-pause"; }
+  audio.onended = () => { if (icon) icon.className = "fa-solid fa-play"; };
+}
+
+function abrirImagem(url) {
+  const v = window.open(); v.document.write(`<body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh"><img src="${url}" style="max-width:100%;max-height:100vh;object-fit:contain"></body>`);
+}
+
+/* =========================================
+   CHAT — ENVIO DE MÍDIA (imagem/vídeo curto)
+   ========================================= */
+document.getElementById("midiaInput").onchange = function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const isVideo = file.type.startsWith("video");
+
+  if (isVideo) {
+    // Vídeos do chat: upload para Storage para persistência
+    toast("Enviando vídeo...");
+    const ref = storage.ref(`familia_chat_videos/${Date.now()}_${file.name}`);
+    const task = ref.put(file);
+    task.on("state_changed", null, () => toast("Erro no upload ❌"),
+      () => task.snapshot.ref.getDownloadURL().then(url => {
+        dbMsg.push({ nome:meuNome, videoUrl:url, ts:Date.now() });
+        somEnviar(); vibrar(50);
+      })
+    );
+    e.target.value = ""; return;
+  }
+
+  // Imagens: comprime e salva como base64
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const cvs = document.createElement("canvas");
+      const maxW = 600; const scale = Math.min(1, maxW / img.width);
+      cvs.width = img.width * scale; cvs.height = img.height * scale;
+      cvs.getContext("2d").drawImage(img, 0, 0, cvs.width, cvs.height);
+      dbMsg.push({ nome:meuNome, imgUrl:cvs.toDataURL("image/jpeg",.72), ts:Date.now() });
+      somEnviar(); vibrar(50);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file); e.target.value = "";
+};
+
+/* =========================================
+   GALERIA — LEITURA E RENDERIZAÇÃO
+   ========================================= */
+let videoAtualKey  = null;
+let videoAtualLikes = 0;
+let videoAtualCurtido = false;
+
+dbVideos.on("value", snap => {
+  const grid = document.getElementById("grid-videos");
+  grid.innerHTML = "";
+  const items = [];
+  snap.forEach(c => items.push({ key:c.key, val:c.val() }));
+  items.reverse().forEach(({ key, val:v }) => {
+    const card = criarCardVideo(key, v);
+    grid.appendChild(card);
+  });
+});
+
+function criarCardVideo(key, v) {
+  const card = document.createElement("div");
+  card.className = "video-card";
+  card.dataset.key = key;
+
+  // Thumbnail via vídeo com preload
+  const vid = document.createElement("video");
+  vid.src = v.url;
+  vid.preload = "metadata";
+  vid.playsInline = true;
+  vid.loop = true;
+  vid.muted = true;
+
+  // Overlay
+  const overlay = document.createElement("div");
+  overlay.className = "video-overlay";
+
+  const dur = document.createElement("div");
+  dur.className = "video-duration";
+  dur.textContent = "●";
+
+  // Pega duração real quando metadata carregar
+  vid.onloadedmetadata = () => {
+    const s = Math.round(vid.duration);
+    dur.textContent = s >= 60 ? `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}` : `0:${String(s).padStart(2,"0")}`;
+  };
+
+  const footer = document.createElement("div");
+  footer.className = "video-card-footer";
+  const autor = document.createElement("span");
+  autor.className = "video-autor";
+  autor.textContent = v.autor || "";
+  const like = document.createElement("div");
+  like.className = "btn-like";
+  like.innerHTML = `<i class="fa-solid fa-heart"></i> <span>${v.likes||0}</span>`;
+  like.onclick = (e) => { e.stopPropagation(); curtirVideo(key, like); };
+
+  footer.appendChild(autor); footer.appendChild(like);
+  overlay.appendChild(dur); overlay.appendChild(footer);
+
+  const playIcon = document.createElement("div");
+  playIcon.className = "video-play-icon";
+  playIcon.innerHTML = `<i class="fa-solid fa-play"></i>`;
+
+  card.appendChild(vid);
+  card.appendChild(overlay);
+  card.appendChild(playIcon);
+
+  // Toque curto = play inline, toque longo ou swipe = viewer
+  let touchStart = 0;
+  card.ontouchstart = () => touchStart = Date.now();
+  card.ontouchend = (e) => {
+    const dur2 = Date.now() - touchStart;
+    if (dur2 < 250) abrirViewer(key, v);
+  };
+  card.onclick = () => abrirViewer(key, v);
+
+  return card;
+}
+
+/* =========================================
+   GALERIA — VIEWER FULLSCREEN
+   ========================================= */
+function abrirViewer(key, v) {
+  videoAtualKey = key;
+  videoAtualLikes = v.likes || 0;
+  const viewer = document.getElementById("video-viewer");
+  const vid    = document.getElementById("viewer-video");
+  const autorEl = document.getElementById("viewer-autor");
+  const likesEl = document.getElementById("viewer-likes");
+  const likeBtn = document.getElementById("viewer-like-btn");
+
+  vid.src = v.url;
+  vid.load();
+  vid.play().catch(()=>{});
+  autorEl.textContent = v.autor || "";
+  likesEl.textContent = videoAtualLikes;
+  likeBtn.classList.remove("curtido");
+  videoAtualCurtido = false;
+
+  viewer.classList.add("aberto");
+  vibrar(20);
+
+  // Atualiza likes em tempo real para este vídeo
+  db.ref(`familia_videos/${key}/likes`).on("value", s => {
+    videoAtualLikes = s.val() || 0;
+    likesEl.textContent = videoAtualLikes;
+  });
+}
+
+function fecharViewer() {
+  const vid = document.getElementById("viewer-video");
+  vid.pause(); vid.src = "";
+  document.getElementById("video-viewer").classList.remove("aberto");
+  if (videoAtualKey) db.ref(`familia_videos/${videoAtualKey}/likes`).off("value");
+  videoAtualKey = null;
+}
+
+function curtirViewerVideo() {
+  if (!videoAtualKey) return;
+  const btn = document.getElementById("viewer-like-btn");
+  if (!btn.classList.contains("curtido")) {
+    db.ref(`familia_videos/${videoAtualKey}/likes`).transaction(n => (n||0)+1);
+    btn.classList.add("curtido");
+    videoAtualCurtido = true;
+    somCurtir(); vibrar([30,20,30]);
+  }
+}
+
+/* =========================================
+   GALERIA — CURTIR NO GRID
+   ========================================= */
+function curtirVideo(id, btn) {
+  if (btn.classList.contains("curtido")) return;
+  db.ref("familia_videos/"+id+"/likes").transaction(n=>(n||0)+1);
+  btn.classList.add("curtido"); somCurtir(); vibrar([30,20,30]);
+}
+
+/* =========================================
+   GALERIA — UPLOAD DE VÍDEO
+   ========================================= */
+document.getElementById("videoInput").onchange = function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const tmpV = document.createElement("video");
+  tmpV.preload = "metadata";
+  tmpV.onloadedmetadata = () => {
+    if (tmpV.duration > 180) { toast("Vídeo deve ter menos de 3 minutos ⚠️"); return; }
+    uploadVideo(file);
+  };
+  tmpV.src = URL.createObjectURL(file); e.target.value = "";
+};
+
+function uploadVideo(file) {
+  const wrap  = document.getElementById("uploadWrap");
+  const fill  = document.getElementById("uploadFill");
+  const label = document.getElementById("uploadLabel");
+
+  wrap.classList.add("visivel");
+  label.textContent = "ENVIANDO...";
+  fill.style.width = "0%";
+
+  const task = storage.ref(`familia_videos/${Date.now()}_${file.name}`).put(file);
+  toast("Enviando vídeo...");
+
+  task.on("state_changed",
+    s => {
+      const pct = Math.round(s.bytesTransferred / s.totalBytes * 100);
+      fill.style.width = pct + "%";
+      label.textContent = `ENVIANDO... ${pct}%`;
+    },
+    () => {
+      toast("Erro no upload ❌");
+      wrap.classList.remove("visivel");
+    },
+    () => {
+      task.snapshot.ref.getDownloadURL().then(url => {
+        dbVideos.push({ url, autor:meuNome, likes:0, ts:Date.now() });
+        fill.style.width = "100%";
+        label.textContent = "PUBLICADO! 🎬";
+        setTimeout(() => { wrap.classList.remove("visivel"); fill.style.width="0%"; }, 1800);
+        toast("Vídeo publicado! 🎬");
+        somUploadOk(); vibrar(100);
+      });
+    }
+  );
+}
+
+/* =========================================
+   GRAVAÇÃO DE ÁUDIO
+   ========================================= */
+let mediaRecorder, audioChunks=[];
+async function toggleGravacao() {
+  const btn = document.getElementById("btnMic");
+  if (!mediaRecorder || mediaRecorder.state === "inactive") {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      mediaRecorder = new MediaRecorder(stream); audioChunks = [];
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const reader = new FileReader();
+        reader.readAsDataURL(new Blob(audioChunks, { type:"audio/webm" }));
+        reader.onloadend = () => {
+          dbMsg.push({ nome:meuNome, audio:reader.result, ts:Date.now() });
+          somEnviar(); vibrar(60);
+        };
+      };
+      mediaRecorder.start(); btn.classList.add("gravando");
+      btn.querySelector("i").className = "fa-solid fa-stop";
+      beep(440,.05); toast("🔴 Gravando... toque para parar");
+    } catch(e) { toast("Microfone não autorizado ❌"); }
+  } else {
+    mediaRecorder.stop(); mediaRecorder.stream?.getTracks().forEach(t=>t.stop());
+    btn.classList.remove("gravando"); btn.querySelector("i").className = "fa-solid fa-microphone";
+  }
+}
+
+/* =========================================
+   EVENTOS GLOBAIS
+   ========================================= */
+document.addEventListener("touchstart", ()=>getAC(), {once:true});
+document.addEventListener("click",      ()=>getAC(), {once:true});
+document.getElementById("msgInput").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); enviar(); } });
+
+// Fecha viewer com swipe para baixo
+let vyStart = 0;
+document.getElementById("video-viewer").addEventListener("touchstart", e=>{ vyStart = e.touches[0].clientY; });
+document.getElementById("video-viewer").addEventListener("touchend",   e=>{
+  if (e.changedTouches[0].clientY - vyStart > 80) fecharViewer();
+});
+</script>
+
+<!-- ✅ SERVICE WORKER REGISTRADO -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(r => console.log('SW registrado:', r.scope))
+        .catch(e => console.error('SW falhou:', e));
+    });
+  }
+</script>
+</body>
+</html>
