@@ -10,12 +10,12 @@
 - [ ] Commit: "Implementado: Setup inicial do projeto, PWA e tema base"
 
 ## Fase 2: UI Base - Barra Inferior, Chat e Input
-- [ ] Criar layout de barra de navegação inferior com ícones (Galeria, Arquivo, Localização, Lista, Contato, Música, Jogos, Rádio)
-- [ ] Implementar layout de chat individual com área de mensagens
-- [ ] Criar área de input com suporte a texto, áudio e vídeo (máx 30s)
-- [ ] Implementar menu de contexto nas mensagens (responder, copiar, deletar, reagir)
-- [ ] Adicionar avatares de 48px com border-radius 50% e margem de 12px
-- [ ] Commit: "Implementado: UI base com barra inferior, chat e input"
+- [x] Criar layout de barra de navegação inferior com ícones (Galeria, Arquivo, Localização, Lista, Contato, Música, Jogos, Rádio)
+- [x] Implementar layout de chat individual com área de mensagens
+- [x] Criar área de input com suporte a texto, áudio e vídeo (máx 30s)
+- [x] Implementar menu de contexto nas mensagens (responder, copiar, deletar, reagir)
+- [x] Adicionar avatares de 48px com border-radius 50% e margem de 12px
+- [x] Commit: "Implementado: UI base com barra inferior, chat e input"
 
 ## Fase 3: Autenticação Firebase
 - [ ] Integrar Firebase Auth (Email/Senha)
