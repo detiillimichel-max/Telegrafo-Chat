@@ -5,9 +5,9 @@ Mensageiro familiar em tempo real. Interface dark com avatares circulares, envio
 Demo:
 detiillimichel-max.github.io/Telegrafo-Chat/
 ## Visão Geral
-Telegrafo-Chat nasceu como um app single-file feito com Sonnet e evoluiu para um monorepo full-stack com React 19 + Tailwind 4 + Express 4 + tRPC 11 + Manus Auth.
+Telegrafo-Chat nasceu como um app single-file feito com carinho .
 
-O visual atual em produção é o OIO ONE FAMÍLIA: header com logo, seletor de membros Michel / Gabriela / Michele Detilli / ADD, área de mensagens e composer com câmera, microfone e botão enviar.
+O visual atual em produção é : header com logo, seletor de membro/ ADD, área de mensagens e composer com câmera, microfone e botão enviar.
 
 ## Stack
 - Frontend: React 19, Tailwind 4, shadcn/ui, Vite
