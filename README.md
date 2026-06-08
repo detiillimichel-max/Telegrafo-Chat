@@ -40,5 +40,5 @@ pnpm build
 
 © 2026 Michel Detilli.
 Todos os direitos reservados. 
-É permitido jogar online. É proibida a cópia, distribuição ou uso comercial do código sem autorização.
+É permitido mensagens escrita e em áudio foto e vídeo online. É proibida a cópia, distribuição ou uso comercial do código sem autorização.
 Contato detiillimichel@gmail.com
