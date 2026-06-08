@@ -1038,3 +1038,7 @@ await createInvite.mutateAsync({ eventId: "123", origin: window.location.origin 
 // Backend - use input.origin to build the URL
 const inviteUrl = `${input.origin}/events/${eventId}/join?token=${token}`;
 ```
+
+© 2026 Michel Detilli.
+Todos os direitos reservados. 
+É permitido Enviar e receber mensagens de texto ou audio e envio de foto . É proibida a cópia, distribuição ou uso comercial do código sem autorização.
