@@ -2,8 +2,8 @@
 
 Mensageiro familiar em tempo real. Interface dark com avatares circulares, envio de texto, áudio e foto, e canal “FAMÍLIA”.
 
-Demo: https://detiillimichel-max.github.io
-
+Demo:
+detiillimichel-max.github.io/Telegrafo-Chat/
 ## Visão Geral
 Telegrafo-Chat nasceu como um app single-file feito com Sonnet e evoluiu para um monorepo full-stack com React 19 + Tailwind 4 + Express 4 + tRPC 11 + Manus Auth.
 
